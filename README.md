@@ -1,10 +1,7 @@
-# Golem - Test Automation
+# Artemis 
+**Avaloq Robotics Tool Enterprise Monitoring Interface System**
 
-[![Tests](https://github.com/golemhq/golem/actions/workflows/run-tests.yml/badge.svg?branch=master)](https://github.com/golemhq/golem/actions/workflows/run-tests.yml?query=branch:master)
-[![Documentation Status](https://readthedocs.org/projects/golem-framework/badge/?version=latest)](https://golem-framework.readthedocs.io/en/latest/?badge=latest)
-[![Join the chat at https://gitter.im/golem-framework/golem](https://badges.gitter.im/golem-framework/golem.svg)](https://gitter.im/golem-framework/golem?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-Golem is a test framework and a complete tool for browser automation.
+Artemis is a test framework for browser automation forked by Golem (https://github.com/golemhq/golem)
 Tests can be written with code in Python, codeless using the web IDE, or both.
 
 ![Execution Report Demo](https://raw.githubusercontent.com/golemhq/resources/master/img/demo_report_running_execution.gif)
@@ -28,11 +25,6 @@ Tests can be written with code in Python, codeless using the web IDE, or both.
 * Built in parallel test support
 * Reporting engine
 
-<br>
-
-**Golem is still in beta!**. Read the changelog before upgrading.
-
-<br>
 
 ## Screen Captures
 
@@ -53,11 +45,8 @@ Tests can be written with code in Python, codeless using the web IDE, or both.
 
 ## Installation
 
-Golem works with Python 3.6+
+Artemis  works with Python 3.6+
 
-```
-pip install golem-framework
-```
 
 Read the full installation guide here: [https://golem-framework.readthedocs.io/en/latest/installation.html](https://golem-framework.readthedocs.io/en/latest/installation.html)
 
