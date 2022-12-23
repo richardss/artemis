@@ -110,8 +110,8 @@ def run_command(project='', test_query='', browsers=None, processes=1, environme
                     if os.path.isdir(path):
                         execution_runner.run_directory(test_query)
                     else:
-                        msg = (f'golem run: error: the value {test_query} does not match '
-                               'an existing test, suite or directory')
+                        msg = ('golem run: error: the value {} does not match '
+                               'an existing test, suite or directory'.format(test_query))
                         sys.exit(msg)
             else:
                 print(messages.RUN_USAGE_MSG)
@@ -124,14 +124,15 @@ def run_command(project='', test_query='', browsers=None, processes=1, environme
                 for suite in suites['sub_elements']:
                     print('  ' + suite['name'])
         else:
-            sys.exit(f'golem run: error: the project {project} does not exist')
+            msg = ('golem run: error: the project {} does not exist'.format(project))
+            sys.exit(msg)
     elif interactive:
         interactive_module.interactive(session.settings, browsers)
     else:
         print(messages.RUN_USAGE_MSG)
         print('Projects:')
         for project in test_directory.get_projects():
-            print(f'  {project}')
+            print('  {}'.format(project))
 
 
 def gui_command(host=None, port=5000, debug=False):
@@ -140,15 +141,17 @@ def gui_command(host=None, port=5000, debug=False):
 
 def createproject_command(project):
     if test_directory.project_exists(project):
-        m = f'golem createproject: error: a project with name \'{project}\' already exists'
-        sys.exit(m)
+        msg = ('golem createproject: error: a project with name \'{}\' already exists'
+               .format(project))
+        sys.exit(msg)
     else:
         create_project(project)
 
 
 def createtest_command(project, test_name):
     if not test_directory.project_exists(project):
-        msg = f'golem createtest: error: a project with name {project} does not exist'
+        msg = ('golem createtest: error: a project with name {} '
+               'does not exist'.format(project))
         sys.exit(msg)
     test_name = test_name.replace(os.sep, '.')
     errors = test.create_test(project, test_name)
@@ -158,7 +161,8 @@ def createtest_command(project, test_name):
 
 def createsuite_command(project, suite_name):
     if not test_directory.project_exists(project):
-        msg = f'golem createsuite: error: a project with name {project} does not exist'
+        msg = ('golem createsuite: error: a project with name {} '
+               'does not exist'.format(project))
         sys.exit(msg)
     errors = suite_module.create_suite(project, suite_name)
     if errors:
@@ -200,10 +204,10 @@ def createsuperuser_command(username, email, password, no_input=False):
     errors = Users.create_super_user(username, password, email)
     if errors:
         for error in errors:
-            print(f'Error: {error}')
+            print('Error: {}'.format(error))
         exit(1)
     else:
-        print(f'Superuser {username} was created successfully.')
+        print('Superuser {} was created successfully.'.format(username))
 
 
 def createdirectory_command(dir_name, no_confirm=False, download_drivers=True):
@@ -217,7 +221,7 @@ def createdirectory_command(dir_name, no_confirm=False, download_drivers=True):
     if os.path.isdir(abspath) and os.listdir(abspath):
         # directory is not empty
         if not no_confirm:
-            msg = f'Directory {dir_name} is not empty, continue? [Y/n]'
+            msg = 'Directory {} is not empty, continue? [Y/n]'.format(dir_name)
             if not utils.prompt_yes_no(msg):
                 return
         if os.path.isfile(os.path.join(abspath, '.golem')):
@@ -225,7 +229,7 @@ def createdirectory_command(dir_name, no_confirm=False, download_drivers=True):
     session.testdir = abspath
     test_directory.create_test_directory(abspath)
 
-    print(f'New golem test directory created at {abspath}')
+    print('New golem test directory created at {}'.format(abspath))
     print('Use these credentials to access the GUI module:')
     print('  user:     admin')
     print('  password: admin')
@@ -233,20 +237,12 @@ def createdirectory_command(dir_name, no_confirm=False, download_drivers=True):
     if download_drivers:
         drivers_folder = os.path.join(abspath, 'drivers')
         update = True
-        # Download ChromeDriver
         if not no_confirm:
             msg = 'Would you like to download ChromeDriver now? [Y/n]'
             update = utils.prompt_yes_no(msg, True)
         if update:
             webdriver_manager.update('chrome', drivers_folder)
-        update = True
-        # Download GeckoDriver
-        if not no_confirm:
-            msg = 'Would you like to download GeckoDriver now? [Y/n]'
-            update = utils.prompt_yes_no(msg, True)
-        if update:
-            webdriver_manager.update('geckodriver', drivers_folder)
 
 
 def display_version():
-    print(f'Golem version {golem.__version__}')
+    print('Golem version {}'.format(golem.__version__))

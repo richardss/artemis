@@ -66,17 +66,9 @@ class TestRunner:
         # When test_functions_to_run is empty or None, all the test functions
         # defined in the test file will be run
         self.test_functions_to_run = test_functions_to_run or []
-        self.test_hooks = {
-            'before_test': [],
-            'before_each': [],
-            'after_each': [],
-            'after_test': []
-        }
         self.execution_has_failed_tests = execution_has_failed_tests
         self.execution_tags = tags or []
         self.from_suite = from_suite
-        self.global_skip = False
-        self.skip_tests = False
 
         self.result = None
         self.reportdir = None
@@ -113,36 +105,16 @@ class TestRunner:
         else:
             self.test_module = test_module
 
-            # Gather test hooks defined in the test module
-            # TODO setup is deprecated, if before_test is not present, and
-            #  setup is, use setup instead
-            if hasattr(self.test_module, 'before_test'):
-                self.test_hooks['before_test'].append(getattr(self.test_module, 'before_test'))
-            elif hasattr(self.test_module, 'setup'):
-                self.test_hooks['before_test'].append(getattr(self.test_module, 'setup'))
-
-            if hasattr(self.test_module, 'before_each'):
-                self.test_hooks['before_each'].append(getattr(self.test_module, 'before_each'))
-            if hasattr(self.test_module, 'after_each'):
-                self.test_hooks['after_each'].append(getattr(self.test_module, 'after_each'))
-
-            # TODO teardown is deprecated, if after_test is not present, and
-            #  teardown is, use teardown instead
-            if hasattr(self.test_module, 'after_test'):
-                self.test_hooks['after_test'].append(getattr(self.test_module, 'after_test'))
-            elif hasattr(self.test_module, 'teardown'):
-                self.test_hooks['after_test'].append(getattr(self.test_module, 'teardown'))
-
             # If test_functions_to_run is empty every test function defined in the
             # file will be run
             if not self.test_functions_to_run:
                 self.test_functions_to_run = self.test.test_function_list
 
             if not len(self.test_functions_to_run):
-                msg = f'No tests were found for file: {self.test.name}'
-                execution.logger.info(msg)
-                self.finalize()
-                return
+                msg = 'No tests were found for file: {}'.format(self.test.name)
+                actions._add_error(message=msg, log_level='INFO')
+                self.result = ResultsEnum.NOT_RUN
+                self.finalize(import_modules_failed=True)
             else:
                 for test_function in self.test_functions_to_run:
                     self.test_functions[test_function] = self._test_function_result_dict(test_function)
@@ -169,7 +141,7 @@ class TestRunner:
                     self.test_module = import_page_into_test(base_path, self.test_module,
                                                              page.split('.'))
         except Exception as e:
-            message = f'{e.__class__.__name__}: {e}'
+            message = '{}: {}'.format(e.__class__.__name__, e)
             trcbk = traceback.format_exc()
             actions._add_error(message=message, description=trcbk)
             self.result = ResultsEnum.CODE_ERROR
@@ -178,36 +150,29 @@ class TestRunner:
         # test is skipped only when run from a suite
         skip = getattr(self.test_module, 'skip', False)
         if skip and self.from_suite:
-            self.global_skip = skip
+            self.result = ResultsEnum.SKIPPED
+            msg = 'Skip: {}'.format(skip) if type(skip) is str else 'Skip'
+            execution.logger.info(msg)
 
-        if self.result == ResultsEnum.CODE_ERROR:
+        if self.result in [ResultsEnum.CODE_ERROR, ResultsEnum.SKIPPED]:
             self.finalize(import_modules_failed=True)
         else:
             self.run_setup()
 
     def run_setup(self):
-        if self.global_skip:
+        try:
+            if hasattr(self.test_module, 'setup'):
+                self.test_module.setup(execution.data)
+        except AssertionError as e:
+            self._add_error(message='Failure', exception=e)
+            self.result = ResultsEnum.FAILURE
+        except Exception as e:
+            self._add_error(message='Error', exception=e)
+            self.result = ResultsEnum.CODE_ERROR
+        if self.result in [ResultsEnum.CODE_ERROR, ResultsEnum.FAILURE]:
+            self.run_teardown(setup_failed=True)
+        else:
             self.run_test_functions()
-            return
-
-        for before_test_hook in self.test_hooks['before_test']:
-            # TODO setup is deprecated
-            # setup is still run as 'setup' and an info log is shown
-            hook_name = 'before_test'
-            if before_test_hook.__name__ == 'setup':
-                hook_name = 'setup'
-                execution.logger.info('setup hook function is deprecated, use before_test')
-
-            # reset execution values specific to this test
-            self._reset_execution_module_values_for_test_function(None, hook_name)
-
-            result = self.generic_run_function(before_test_hook)
-
-            if result != ResultsEnum.SUCCESS:
-                self.generate_report_for_hook_function(hook_name, result)
-                return self.run_teardown(setup_failed=True)
-
-        self.run_test_functions()
 
     def run_test_functions(self):
         for test_function in self.test_functions:
@@ -215,40 +180,20 @@ class TestRunner:
         self.run_teardown()
 
     def run_test_function(self, test_name):
-        result = self.test_functions[test_name]
-        self._reset_execution_module_values_for_test_function(None, test_name)
+        execution.logger.info('Test started: {}'.format(test_name))
 
-        if self.global_skip or self.skip_tests:
-            result['result'] = ResultsEnum.SKIPPED
-            execution.logger.info(f'Test skipped: {test_name}')
-            self._finalize_test_function(test_name)
-            return
+        result = self.test_functions[test_name]
 
         # Create folder for the test function report
         test_reportdir = test_report.create_test_function_report_dir(self.reportdir, test_name)
         result['test_reportdir'] = test_reportdir
 
-        # Run before_each hooks
-        for before_each_hook in self.test_hooks['before_each']:
-            # reset execution values specific to this test
-            self._reset_execution_module_values_for_test_function(None, 'before_each')
-
-            before_each_result = self.generic_run_function(before_each_hook)
-
-            if before_each_result != ResultsEnum.SUCCESS:
-                self.skip_tests = True
-                self.generate_report_for_hook_function('before_each', before_each_result)
+        # Add logger handlers for this single test function
+        # logger, file_handler_debug, file_handler_info = test_logger.get_logger_for_test_function(
+        #     test_reportdir, self.settings['log_all_events'])
 
         # reset execution values specific to this test
         self._reset_execution_module_values_for_test_function(test_reportdir, test_name)
-
-        if self.skip_tests:
-            result['result'] = ResultsEnum.SKIPPED
-            execution.logger.info(f'Test skipped: {test_name}')
-            self._finalize_test_function(test_name)
-            return
-
-        execution.logger.info(f'Test started: {test_name}')
 
         result['start_time'] = time.time()
 
@@ -266,37 +211,32 @@ class TestRunner:
             result['result'] = ResultsEnum.CODE_ERROR
             self._add_error(message='Error', exception=e)
 
+        result['end_time'] = time.time()
+
         if result['result'] not in [ResultsEnum.CODE_ERROR, ResultsEnum.FAILURE]:
             if execution.errors:
                 result['result'] = ResultsEnum.ERROR
 
-        if result['result'] in [None, ResultsEnum.PENDING]:
+        if result['result'] is None:
             result['result'] = ResultsEnum.SUCCESS
 
-        result['end_time'] = time.time()
-        result['test_elapsed_time'] = round(result['end_time'] - result['start_time'], 2)
+        execution.logger.info('Test Result: {}'.format(result['result'].upper()))
 
-        execution.logger.info(f"Test Result: {result['result'].upper()}")
+        # Stop test function logger handlers
+        # test_logger.remove_handler_and_close(logger, file_handler_debug)
+        # test_logger.remove_handler_and_close(logger, file_handler_info)
 
         self._finalize_test_function(test_name)
-
-        # Run after_each hooks
-        for after_each_hook in self.test_hooks['after_each']:
-            # reset execution values specific to this test
-            self._reset_execution_module_values_for_test_function(None, 'after_each')
-
-            after_each_result = self.generic_run_function(after_each_hook)
-
-            if after_each_result != ResultsEnum.SUCCESS:
-                self.skip_tests = True
-                self.generate_report_for_hook_function('after_each', after_each_result)
 
     def _finalize_test_function(self, test_name):
         result = self.test_functions[test_name]
 
+        test_elapsed_time = round(result['end_time'] - result['start_time'], 2)
+
         result['description'] = execution.description
         result['steps'] = execution.steps
         result['errors'] = execution.errors
+        result['test_elapsed_time'] = test_elapsed_time
         result['test_timestamp'] = self.test_timestamp
         result['browser'] = execution.browser_definition['name']
         result['browser_capabilities'] = execution.browser_definition['capabilities']
@@ -312,27 +252,21 @@ class TestRunner:
 
     def run_teardown(self, setup_failed=False):
         teardown_failed = False
-
-        if self.global_skip:
-            self.finalize()
-            return
-
-        for after_test_hook in self.test_hooks['after_test']:
-            # TODO teardown is deprecated
-            # teardown is still run as 'teardown' and an info log is shown
-            hook_name = 'after_test'
-            if after_test_hook.__name__ == 'teardown':
-                hook_name = 'teardown'
-                execution.logger.info('teardown hook function is deprecated, use after_test')
-
-            # reset execution values specific to this test
-            self._reset_execution_module_values_for_test_function(None, hook_name)
-
-            result = self.generic_run_function(after_test_hook)
-
-            if result != ResultsEnum.SUCCESS:
-                self.generate_report_for_hook_function(hook_name, result)
-
+        try:
+            if hasattr(self.test_module, 'teardown'):
+                self.test_module.teardown(execution.data)
+            else:
+                execution.logger.debug('test does not have a teardown function')
+        except AssertionError as e:
+            if not self.result == ResultsEnum.CODE_ERROR:
+                self.result = ResultsEnum.FAILURE
+            self._add_error(message='Failure', exception=e)
+            teardown_failed = True
+        except Exception as e:
+            if not self.result == ResultsEnum.FAILURE:
+                self.result = ResultsEnum.CODE_ERROR
+            self._add_error(message='Error', exception=e)
+            teardown_failed = True
         # if there is no teardown or teardown failed or it did not close the driver,
         # let's try to close the driver manually
         if execution.browser:
@@ -362,34 +296,27 @@ class TestRunner:
             test_report.generate_report(self.test.name, result, execution.data,
                                         self.reportdir)
 
+        if setup_failed:
+            result = self._test_function_result_dict('setup')
+            result['result'] = self.result
+            result['description'] = execution.description
+            result['test_timestamp'] = self.test_timestamp
+            result['errors'] = execution.errors
+            # result['steps'] = execution.steps  # TODO at this point this can be
+            # setup steps or teardown steps
+            test_report.generate_report(self.test.name, result, execution.data,
+                                        self.reportdir)
+
+        if teardown_failed:
+            result = self._test_function_result_dict('teardown')
+            result['result'] = self.result
+            result['description'] = execution.description
+            result['test_timestamp'] = self.test_timestamp
+            result['errors'] = execution.errors
+            test_report.generate_report(self.test.name, result, execution.data,
+                                        self.reportdir)
+
         test_logger.reset_logger(execution.logger)
-
-    def generic_run_function(self, function):
-        result = None
-        try:
-            function(execution.data)
-        except AssertionError as e:
-            self._add_error(message='Failure', exception=e)
-            result = ResultsEnum.FAILURE
-        except Exception as e:
-            self._add_error(message='Error', exception=e)
-            result = ResultsEnum.CODE_ERROR
-        if result is None:
-            if execution.errors:
-                result = ResultsEnum.ERROR
-            else:
-                result = ResultsEnum.SUCCESS
-        return result
-
-    def generate_report_for_hook_function(self, hook_name, result):
-        result_dict = self._test_function_result_dict(hook_name)
-        result_dict['result'] = result
-        result_dict['description'] = execution.description
-        result_dict['test_timestamp'] = self.test_timestamp
-        result_dict['errors'] = execution.errors
-        result_dict['steps'] = execution.steps
-        result_dict['browser'] = execution.browser_definition['name']
-        test_report.generate_report(self.test.name, result_dict, execution.data, self.reportdir)
 
     def _set_execution_module_values(self):
         execution.test_file = self.test.name
@@ -426,20 +353,21 @@ class TestRunner:
         execution.timers = {}
 
     def _print_test_info(self):
-        execution.logger.info(f'Test execution started: {self.test.name}')
-        execution.logger.info(f"Browser: {self.browser['name']}")
+        execution.logger.info('Test execution started: {}'.format(self.test.name))
+        execution.logger.info('Browser: {}'.format(self.browser['name']))
         if 'env' in self.test_data:
             if 'name' in self.test_data['env']:
-                execution.logger.info(f"Environment: {self.test_data['env']['name']}")
+                execution.logger.info('Environment: {}'
+                                      .format(self.test_data['env']['name']))
         if self.test_data:
             data_string = ''
             for key, value in self.test_data.items():
                 if key == 'env':
                     if 'url' in value:
-                        data_string += f"\n    url: {value['url']}"
+                        data_string += '\n    {}: {}'.format('url', value['url'])
                 else:
-                    data_string += f'\n    {key}: {value}'
-            execution.logger.info(f'Using data:{data_string}')
+                    data_string += '\n    {}: {}'.format(key, value)
+            execution.logger.info('Using data:{}'.format(data_string))
 
     def _add_error(self, message, exception):
         """Add an error to the test from an exception.
@@ -454,7 +382,7 @@ class TestRunner:
             there is an open browser
         """
         actions._add_step(message, log_step=False)
-        error_message = f'{exception.__class__.__name__}: {exception}'
+        error_message = '{}: {}'.format(exception.__class__.__name__, exception)
         trcbk = traceback.format_exc().rstrip()
         actions._add_error(message=error_message, description=trcbk)
         actions._append_error(message=error_message, description=trcbk)
@@ -476,7 +404,7 @@ class TestRunner:
             'start_time': None,
             'end_time': None,
             'test_reportdir': None,
-            'result': ResultsEnum.PENDING,
+            'result': None,
             'errors': [],
             'description': '',
             'steps': [],

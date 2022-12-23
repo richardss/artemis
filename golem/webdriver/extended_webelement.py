@@ -30,7 +30,8 @@ class ExtendedWebElement:
             if not self.is_selected():
                 self.click()
         else:
-            raise ValueError(f'Element {self.name} is not checkbox or radiobutton')
+            msg = 'Element {} is not checkbox or radiobutton'.format(self.name)
+            raise ValueError(msg)
 
     def double_click(self):
         """Double click the element"""
@@ -142,9 +143,9 @@ class ExtendedWebElement:
             self.send_keys(key_attr)
         else:
             defined_keys = [name for name in dir(Keys) if not name.startswith('_')]
-            error_msg = (f'Key {key} is invalid\n'
+            error_msg = ('Key {} is invalid\n'
                          'valid keys are:\n'
-                         f'{",".join(defined_keys)}')
+                         '{}'.format(key, ','.join(defined_keys)))
             raise ValueError(error_msg)
 
     @property
@@ -181,7 +182,7 @@ class ExtendedWebElement:
             if self.is_selected():
                 self.click()
         else:
-            raise ValueError(f'Element {self.name} is not checkbox')
+            raise ValueError('Element {} is not checkbox'.format(self.name))
 
     @property
     def value(self):
@@ -195,7 +196,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f'Timeout waiting for element {self.name} to be displayed'
+        message = ('Timeout waiting for element {} to be displayed'
+                   .format(self.name))
         wait.until(ec.visibility_of(self), message=message)
         return self
 
@@ -206,7 +208,7 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f'Timeout waiting for element {self.name} to be enabled'
+        message = 'Timeout waiting for element {} to be enabled'.format(self.name)
         wait.until(gec.element_to_be_enabled(self), message=message)
         return self
 
@@ -217,7 +219,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f'Timeout waiting for element {self.name} to have attribute {attribute}'
+        message = ('Timeout waiting for element {} to have attribute {}'
+                   .format(self.name, attribute))
         wait.until(gec.element_to_have_attribute(self, attribute), message=message)
         return self
 
@@ -228,7 +231,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f'Timeout waiting for element {self.name} to not have attribute {attribute}'
+        message = ('Timeout waiting for element {} to not have attribute {}'
+                   .format(self.name, attribute))
         wait.until_not(gec.element_to_have_attribute(self, attribute),
                        message=message)
         return self
@@ -240,7 +244,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f'Timeout waiting for element {self.name} to be not displayed'
+        message = ('Timeout waiting for element {} to be not displayed'
+                   .format(self.name))
         wait.until_not(ec.visibility_of(self), message=message)
         return self
 
@@ -251,7 +256,7 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f'Timeout waiting for element {self.name} to be not enabled'
+        message = 'Timeout waiting for element {} to be not enabled'.format(self.name)
         wait.until_not(gec.element_to_be_enabled(self), message=message)
         return self
 
@@ -262,7 +267,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f"Timeout waiting for element {self.name} text to be '{text}'"
+        message = ('Timeout waiting for element {} text to be \'{}\''
+                   .format(self.name, text))
         wait.until(gec.element_text_to_be(self, text), message=message)
         return self
 
@@ -273,7 +279,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f"Timeout waiting for element {self.name} text to contain '{text}'"
+        message = ('Timeout waiting for element {} text to contain \'{}\''
+                   .format(self.name, text))
         wait.until(gec.element_text_to_contain(self, text), message=message)
         return self
 
@@ -284,7 +291,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f"Timeout waiting for element {self.name} text not to be '{text}'"
+        message = ('Timeout waiting for element {} text not to be \'{}\''
+                   .format(self.name, text))
         wait.until_not(gec.element_text_to_be(self, text), message=message)
         return self
 
@@ -295,7 +303,8 @@ class ExtendedWebElement:
           The element
         """
         wait = WebDriverWait(self.parent, timeout)
-        message = f"Timeout waiting for element {self.name} text to not contain '{text}'"
+        message = ('Timeout waiting for element {} text to not contain \'{}\''
+                   .format(self.name, text))
         wait.until_not(gec.element_text_to_contain(self, text),
                        message=message)
         return self

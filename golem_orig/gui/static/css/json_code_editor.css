@@ -1,0 +1,16 @@
+
+
+.codeEditorContainer {
+	margin-top: 15px;
+}
+
+.CodeMirror {
+	font-size:13px;
+	height: auto;
+	border-radius: 3px;
+	border: 1px solid #e0e0e0;
+}
+
+.CodeMirror-scroll {
+    min-height: 150px
+}

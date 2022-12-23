@@ -1,0 +1,37 @@
+
+#codeEditorContainer {
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px
+}
+
+#dataContainerContainer {
+    border-left: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px
+}
+
+.light-gray-block {
+	background-color: #F8F8F8; 
+}
+
+.light-gray-block:hover {
+	background-color: white; 
+}
+
+.input-group {
+    margin-bottom: 5px;
+    width: 100%;
+}
+
+.add-new-icon {
+	width: 25px;
+	vertical-align: inherit;
+}
+
+.input-middle-btn button{
+	border-radius: 0px;
+	border-left: 0px;
+	border-right: 0px;
+}

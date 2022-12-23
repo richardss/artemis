@@ -42,16 +42,6 @@ def report_dashboard_suite(project, execution):
     return render_template('report/report_dashboard.html', project=project, execution=execution)
 
 
-# OLD REPORT DASHBOARD PROJECT VIEW
-@report_bp.route("/report-old/")
-@report_bp.route("/report-old/<project>/")
-@report_bp.route("/report-old/<project>/<execution>/")
-@login_required
-@permission_required(Permissions.REPORTS_ONLY)
-def report_dashboard_old(project=None, execution=None):
-    return render_template('report/report_dashboard_old.html', project=project, execution=execution)
-
-
 # REPORT EXECUTION VIEW
 @report_bp.route("/report/<project>/<execution>/<timestamp>/")
 @login_required
@@ -80,7 +70,7 @@ def report_execution_static_html(project, execution, timestamp):
 @permission_required(Permissions.REPORTS_ONLY)
 def report_execution_static_html_download(project, execution, timestamp):
     html_report_string = html_report.get_or_generate_html_report(project, execution, timestamp)
-    headers = {'Content-disposition': 'attachment; filename=report.html'}
+    headers = {'Content-disposition': 'attachment; filename={}'.format('report.html')}
     return Response(html_report_string, mimetype='text/html', headers=headers)
 
 
@@ -103,7 +93,8 @@ def report_execution_static_html_no_images(project, execution, timestamp):
 def report_execution_static_html_no_images_download(project, execution, timestamp):
     html_report_string = html_report.get_or_generate_html_report(project, execution, timestamp,
                                                                  no_images=True)
-    headers = {'Content-disposition': 'attachment; filename=report-no-images.html'}
+    headers = {
+        'Content-disposition': 'attachment; filename={}'.format('report-no-images.html')}
     return Response(html_report_string, mimetype='text/html', headers=headers)
 
 
@@ -127,7 +118,7 @@ def report_execution_junit(project, execution, timestamp):
 def report_execution_junit_download(project, execution, timestamp):
     junit_report_string = junit_report.get_or_generate_junit_report(
         project, execution, timestamp)
-    headers = {'Content-disposition': 'attachment; filename=report.xml'}
+    headers = {'Content-disposition': 'attachment; filename={}'.format('report.xml')}
     return Response(junit_report_string, mimetype='text/xml', headers=headers)
 
 
@@ -151,7 +142,7 @@ def report_execution_json_download(project, execution, timestamp):
     report_data = exec_report.get_execution_data(project=project, execution=execution,
                                                  timestamp=timestamp)
     json_report = json.dumps(report_data, indent=4)
-    headers = {'Content-disposition': 'attachment; filename=report.json'}
+    headers = {'Content-disposition': 'attachment; filename={}'.format('report.json')}
     return Response(json_report, mimetype='application/json', headers=headers)
 
 

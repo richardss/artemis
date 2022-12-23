@@ -14,7 +14,6 @@ from golem.core import settings_manager
 from golem.core import secrets_manager
 from golem.core import suite as suite_module
 from golem.core import tags_manager
-from golem.core.test import Test
 from golem.core.project import Project
 from golem.gui import gui_utils
 from golem.execution_runner.multiprocess_executor import multiprocess_executor
@@ -24,7 +23,6 @@ from golem.report import execution_report as exec_report
 from golem.report import junit_report
 from golem.report import html_report
 from golem.report import cli_report
-from golem.report import test_report
 
 
 def define_browsers(browsers, remote_browsers, default_browsers, custom_browsers):
@@ -52,42 +50,12 @@ def define_browsers(browsers, remote_browsers, default_browsers, custom_browsers
                 'capabilities': {}
             })
         else:
-            msg = [f'Error: the browser {browser} is not defined\n',
+            msg = ['Error: the browser {} is not defined\n'.format(browser),
                    'available options are:\n',
                    '\n'.join(default_browsers),
                    '\n'.join(remote_browsers)]
             raise Exception(''.join(msg))
     return browsers_definition
-
-
-def initialize_reports_for_test_files(project_name, test_sets):
-    """Initialize test file json report with status `pending`.
-    This enables live reporting.
-    test_sets are all the combinations of test files, environments,
-    browsers and test sets.
-    TODO this could be run in the background meanwhile the execution
-    continues to reduce startup time
-    """
-    test_functions_cache = {}
-
-    for s in test_sets:
-        test_file_reportdir = test_report.create_test_file_report_dir(s.reportdir,
-                                                                      s.name, s.set_name)
-        if s.name not in test_functions_cache:
-            test_file = Test(project_name, s.name)
-            # When there is an error reading the test file (eg. SyntaxError)
-            # the list of test functions is not available
-            try:
-                test_functions_cache[s.name] = test_file.test_function_list
-            except:
-                pass
-
-        # If the test functions are not available this test file report
-        # will not be initialized
-        if s.name in test_functions_cache:
-            test_report.initialize_test_file_report(s.name, test_functions_cache[s.name],
-                                                    s.set_name, test_file_reportdir, s.env,
-                                                    s.browser['name'])
 
 
 class ExecutionRunner:
@@ -184,7 +152,7 @@ class ExecutionRunner:
         secrets = secrets_manager.get_secrets(self.project.name)
 
         for test in self.tests:
-            data_sets = test_data.get_parsed_test_data(self.project.name, test)
+            data_sets = test_data.get_test_data(self.project.name, test)
 
             if len(data_sets) > 1 or len(envs) > 1 or len(self.execution.browsers) > 1:
                 # If the test file contain multiple data sets, envs or browsers
@@ -220,9 +188,9 @@ class ExecutionRunner:
         test_number = len(self.tests)
         set_number = len(self.execution.tests)
         if test_number > 0:
-            msg = f'Tests found: {test_number}'
+            msg = 'Tests found: {}'.format(test_number)
             if test_number != set_number:
-                msg = f'{msg} ({set_number} sets)'
+                msg = '{} ({} sets)'.format(msg, set_number)
             print(msg)
 
     def _filter_tests_by_tags(self):
@@ -231,7 +199,7 @@ class ExecutionRunner:
             tests = tags_manager.filter_tests_by_tags(self.project.name, self.tests,
                                                       self.execution.tags)
         except tags_manager.InvalidTagExpression as e:
-            print(f'{e.__class__.__name__}: {e}')
+            print('{}: {}'.format(e.__class__.__name__, e))
             self.execution.has_failed_tests.value = True
         else:
             if len(tests) == 0:
@@ -278,7 +246,7 @@ class ExecutionRunner:
 
         self.tests = suite_obj.tests
         if len(self.tests) == 0:
-            print(f'No tests found for suite {suite}')
+            print('No tests found for suite {}'.format(suite))
 
         self.suite.processes = suite_obj.processes
         self.suite.browsers = suite_obj.browsers
@@ -299,7 +267,7 @@ class ExecutionRunner:
         """
         self.tests = self.project.tests(directory=directory)
         if len(self.tests) == 0:
-            print(f'No tests were found in {os.path.join("tests", directory)}')
+            print('No tests were found in {}'.format(os.path.join('tests', directory)))
         self.is_suite = True
         if directory == '':
             suite_name = 'all'
@@ -375,8 +343,8 @@ class ExecutionRunner:
             self.execution.envs = self._select_environments(project_envs)
             invalid_envs = [e for e in self.execution.envs if e not in project_envs]
             if invalid_envs:
-                print('ERROR: the following environments do not exist for project '
-                      f'{self.project.name}: {", ".join(invalid_envs)}')
+                print('ERROR: the following environments do not exist for project {}: {}'
+                      .format(self.project.name, ', '.join(invalid_envs)))
                 self.execution.has_failed_tests.value = True
                 self._finalize()
                 return
@@ -388,9 +356,6 @@ class ExecutionRunner:
             # * browser
             # The result is a list that contains all the requested combinations
             self.execution.tests = self._define_execution_list()
-
-            # Initialize reports with status 'pending'
-            initialize_reports_for_test_files(self.project.name, self.execution.tests)
 
             self._print_number_of_tests_found()
 

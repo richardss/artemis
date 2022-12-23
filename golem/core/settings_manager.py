@@ -25,6 +25,9 @@ SETTINGS_FILE_CONTENT = (
 // Highlight elements on the screen when found
 "highlight_elements": false,
 
+// Where to store test data. Options are: 'infile', 'csv'. Default is 'csv'
+"test_data": "csv",
+
 // Custom wait method to use before each step, must be defined inside extend.py
 "wait_hook": null,
 
@@ -80,6 +83,7 @@ DEFAULTS = [
     ('screenshot_on_step', False),
     ('screenshot_on_end', False),
     ('highlight_elements', False),
+    ('test_data', 'csv'),
     ('wait_hook', None),
     ('default_browser', 'chrome'),
     ('chromedriver_path', None),
@@ -128,7 +132,7 @@ def _read_json_with_comments(json_path):
     try:
         json_data = json.loads(file_content_without_comments)
     except Exception:
-        print(f'There was an error reading file {json_path}')
+        print('There was an error reading file {}'.format(json_path))
         print(traceback.format_exc())
     return json_data
 

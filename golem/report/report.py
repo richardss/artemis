@@ -1,14 +1,12 @@
 import os
 import shutil
-from datetime import datetime, timedelta
 
 from golem.core import test_directory
 from golem.core.project import Project
 from golem.report.execution_report import execution_report_path
-from golem.core import utils
 
 
-def get_last_execution_timestamps(projects=None, execution=None, limit=None, last_days=None):
+def get_last_execution_timestamps(projects=None, execution=None, limit=5):
     """Get the last n execution timestamps from all the executions of
     a list of projects.
 
@@ -17,11 +15,6 @@ def get_last_execution_timestamps(projects=None, execution=None, limit=None, las
 
     Timestamps are in descending order.
     """
-    start_timestamp = None
-    if last_days is not None and last_days != 0:
-        start_datetime = datetime.today() - timedelta(days=last_days)
-        start_timestamp = utils.get_timestamp(start_datetime)
-
     last_timestamps = {}
     # if no projects provided, select every project
     if not projects:
@@ -29,25 +22,23 @@ def get_last_execution_timestamps(projects=None, execution=None, limit=None, las
     for project in projects:
         last_timestamps[project] = {}
         report_path = Project(project).report_directory_path
+        executions = []
         # if execution is not provided, select all executions
-        if execution and os.path.isdir(os.path.join(report_path, execution)):
-            executions = [execution]
+        if execution:
+            if os.path.isdir(os.path.join(report_path, execution)):
+                executions = [execution]
         else:
             executions = next(os.walk(report_path))[1]
         for e in executions:
             exec_path = os.path.join(report_path, e)
             timestamps = next(os.walk(exec_path))[1]
-            timestamps = sorted(timestamps, reverse=True)
-            if limit is not None:
-                limit = int(limit)
-                timestamps = timestamps[:limit]
-            if start_timestamp is not None:
-                timestamps = [t for t in timestamps if t >= start_timestamp]
+            timestamps = sorted(timestamps)
+            limit = int(limit)
+            timestamps = timestamps[-limit:]
             if len(timestamps):
                 last_timestamps[project][e] = timestamps
             else:
                 last_timestamps[project][e] = []
-
     return last_timestamps
 
 
@@ -60,7 +51,7 @@ def delete_execution(project, execution):
         except Exception as e:
             errors.append(repr(e))
     else:
-        errors.append(f'Execution {execution} of project {project} does not exist')
+        errors.append('Execution {} of project {} does not exist'.format(execution, project))
     return errors
 
 
@@ -73,5 +64,6 @@ def delete_execution_timestamp(project, execution, timestamp):
         except Exception as e:
             errors.append(repr(e))
     else:
-        errors.append(f'Execution for {project} {execution} {timestamp} does not exist')
+        errors.append('Execution for {} {} {} does not exist'
+                      .format(project, execution, timestamp))
     return errors

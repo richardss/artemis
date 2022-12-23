@@ -76,8 +76,8 @@ const ExecutionReport = new function(){
 		    let testUniqueId = ExecutionReport.testUniqueId(test);
 		    if(ExecutionReport.tests.hasOwnProperty(testUniqueId)){
 		        // is the test modified?
-//		        let equal = Main.Utils.shallowObjectCompare(test, ExecutionReport.tests[testUniqueId]);
-		        if(test.result != ExecutionReport.tests[testUniqueId].result){
+		        let equal = Main.Utils.shallowObjectCompare(test, ExecutionReport.tests[testUniqueId]);
+		        if(!equal){
 		            DetailTable.updateTest(ExecutionReport.tests[testUniqueId], test);
 		            ExecutionReport.tests[testUniqueId] = test;
 		        }
@@ -91,18 +91,17 @@ const ExecutionReport = new function(){
 		    DetailTable.displaySetNameColumn();
 		}
 		// load execution params
-		Object.keys(execution_data.params).forEach(function(param) {
+		Object.keys(execution_data.params).forEach(function(param){
 		    let value = execution_data.params[param];
-		    if(ExecutionReport.params[param] !== value) {
+		    if(ExecutionReport.params[param] !== value){
 		        ExecutionReport.params[param] = value;
-		        if(value != null && value != ''){
-                    if(param == 'browsers') {
+		        if(value != null){
+                    if(param == 'browsers'){
                         value = value.map(b => b.name)
                     }
-                    if(value.constructor == Array) {
+                    if(value.constructor == Array){
                         value = value.join(', ')
                     }
-                    $(`#configSection div[data='${param}']`).show()
                     $(`#configSection div[data='${param}']>span.param-value`).html(value);
                 }
 		    }
@@ -110,6 +109,29 @@ const ExecutionReport = new function(){
 //		if(ExecutionReport.suiteFinished){
 //		    //DetailTable.refreshResultFilterOptions();
 //		}
+	}
+
+	this.formatTimeOutput = function(seconds){
+		let final = '';
+		let min, sec, ms;
+		if(seconds >= 60){
+			min = Math.floor(seconds/60);
+			min = Math.round(min * 10) / 10;
+			remainder = seconds % 60
+			if(remainder != 0){
+				sec = remainder;
+				sec = Math.round(sec * 10) / 10;
+			}
+		} else {
+			sec = Math.round(seconds * 10) / 10;
+		}
+		if(min != undefined){
+			final += min + 'm '
+		}
+		if(sec != undefined){
+			final += sec + 's'
+		}
+		return final
 	}
 
 	this.testUniqueId = function(test) {
@@ -143,7 +165,7 @@ const GeneralTable = new function(){
 		Main.ResultsEnum.failure.code
 	]
 
-	this.updateGeneralTable = function() {
+	this.updateGeneralTable = function(){
         let moduleData = {};
         let generalData = {
             resultTotals: {},
@@ -154,21 +176,21 @@ const GeneralTable = new function(){
             let test = ExecutionReport.tests[t];
             let module = ExecutionReport.testModule(test.test_file);
 
-            if(!moduleData.hasOwnProperty(module)) {
+            if(!moduleData.hasOwnProperty(module)){
                 moduleData[module] = {
                     resultTotals: {},
                     tests: 0,
                     moduleElapsedTime: 0
                 }
             }
-            if(!moduleData[module].resultTotals.hasOwnProperty(test.result)) {
+            if(!moduleData[module].resultTotals.hasOwnProperty(test.result)){
                 moduleData[module].resultTotals[test.result] = 0
             }
             moduleData[module].resultTotals[test.result] += 1;
             moduleData[module].tests += 1;
             moduleData[module].moduleElapsedTime += test.elapsed_time;
             // general data
-            if(!generalData.resultTotals.hasOwnProperty(test.result)) {
+            if(!generalData.resultTotals.hasOwnProperty(test.result)){
                 generalData.resultTotals[test.result] = 0
             }
             generalData.resultTotals[test.result] += 1;
@@ -177,66 +199,64 @@ const GeneralTable = new function(){
         }
         moduleData['totalModuleRow'] = generalData;
 
-        for (const module in moduleData) {
+        Object.keys(moduleData).forEach(function(module){
             let thisModuleData = moduleData[module];
-            let moduleRow = GeneralTable.getOrAddModuleRow(module);
+            let moduleRow = GeneralTable.getModuleRow(module);
             let progressContainer = moduleRow.find("td[data='percentage']>div.progress");
 
-            for (const result in thisModuleData.resultTotals) {
-                if(!Main.ReportUtils.hasProgressBarForResult(progressContainer, result)) {
+            Object.keys(thisModuleData.resultTotals).forEach(function(result){
+                // pending and running do not have their own columns
+                if(result != 'pending' && result != 'running'){
+                    // does the Detail Table has column for this test result?
+                    if(!GeneralTable.hasColumnForResult(result)){
+                        GeneralTable.addColumnForResult(result)
+                    }
+                    // update column value for this result
+                    moduleRow.find(`td[data='result'][result='${result}']`).html(thisModuleData.resultTotals[result]);
+                }
+                if(!Main.ReportUtils.hasProgressBarForResult(progressContainer, result)){
                     Main.ReportUtils.createProgressBars(progressContainer, [result])
                 }
                 let percentage = thisModuleData.resultTotals[result] * 100 / thisModuleData.tests;
-                Main.ReportUtils.animateProgressBar(progressContainer, result, percentage, thisModuleData.resultTotals[result])
-            }
+                Main.ReportUtils.animateProgressBar(progressContainer, result, percentage)
+            })
             moduleRow.find("td[data='total-tests']").html(thisModuleData.tests);
-            moduleRow.find("td[data='total-time']").html(
-                Main.Utils.secondsToReadableString(thisModuleData.moduleElapsedTime));
+            moduleRow.find("td[data='total-time']").html(ExecutionReport.formatTimeOutput(thisModuleData.moduleElapsedTime));
 
             // check if pending progress bar is stale
             let moduleHasPending = 'pending' in thisModuleData.resultTotals;
-            if(!moduleHasPending) {
+            if(!moduleHasPending){
                 Main.ReportUtils.animateProgressBar(progressContainer, 'pending', 0)
             }
             // check if running progress bar is stale
             let moduleHasRunning = 'running' in thisModuleData.resultTotals;
-            if(!moduleHasRunning) {
+            if(!moduleHasRunning){
                 Main.ReportUtils.animateProgressBar(progressContainer, 'running', 0)
             }
+        });
 
-            // If there are more than 2 modules then the
-            // "" module should be displayed
-            if(Object.keys(moduleData).length > 2 && GeneralTable.hasModuleRow('')) {
-                GeneralTable.getModuleRow('').show();
-            }
-        };
-
-        if(ExecutionReport.netTime != undefined) {
-            $("#totalRow td[data='net-time']").html(
-                Main.Utils.secondsToReadableString(ExecutionReport.netTime))
+        if(ExecutionReport.netTime != undefined){
+            $("#totalRow td[data='net-time']").html(ExecutionReport.formatTimeOutput(ExecutionReport.netTime))
         }
 	}
 
-    this.getModuleRow = function(moduleName) {
-        return $(`#generalTable tr[module-name='${moduleName}']`);
-    }
-
-	this.addModuleRow = function(moduleName) {
-		let moduleRow = GeneralTable.generateModuleRow({moduleName: moduleName});
+	this.addModuleRow = function(module){
+		let moduleRow = GeneralTable.generateModuleRow({moduleName: module});
 		moduleRow.insertBefore("#totalRow");
 		return moduleRow
 	}
 
-    this.hasModuleRow = function(moduleName) {
-        return this.getModuleRow(moduleName).length == 1
-    }
+	this.getModuleRow = function(module){
+	    let moduleRow = $(`#generalTable tr[module-name='${module}']`);
+		if(moduleRow.length == 0){
+			moduleRow = GeneralTable.addModuleRow(module);
+		}
+		return moduleRow
+	}
 
-	this.getOrAddModuleRow = function(moduleName) {
-	    if(this.hasModuleRow(moduleName)) {
-	        return this.getModuleRow(moduleName)
-	    } else {
-	        return this.addModuleRow(moduleName)
-	    }
+	this.hasColumnForResult = function(result){
+		let columnHeader = $(`#generalTable th[result='${result}']`);
+		return columnHeader.length != 0
 	}
 
 	// Add a new column to GeneralTable for result
@@ -252,23 +272,19 @@ const GeneralTable = new function(){
 		})
 	}
 
-	this.generateModuleRow = function(data) {
+	this.generateModuleRow = function(data){
 		let resultColumns = '';
-		GeneralTable.resultColumns.forEach(function(result) {
+		GeneralTable.resultColumns.forEach(function(result){
 			resultColumns += (`<td data="result" result="${result}">0</td>`)
 		});
-		// if module name == '' the row is hidden by default.
-		// it should be un-hidden when there are other module names
-		let hideRow = '';
-		if(data.moduleName == '') {
-		    hideRow = 'style="display: none"';
-		}
         var row = `
-            <tr class="general-table-row cursor-pointer" module-name="${data.moduleName}" ${hideRow}>
+            <tr class="general-table-row cursor-pointer" module-name="${data.moduleName}">
                 <td data="module">${data.moduleName}</td>
                 <td data="total-tests">${data.totalTests}</td>
+        		${resultColumns}        
                 <td data="percentage"><div class='progress'></div></td>
                 <td data="total-time"></td>
+                <td data="net-time"></td>
             </tr>`;
         return $(row)
     }
@@ -308,21 +324,24 @@ const DetailTable = new function(){
 		    let resultString = `${Main.Utils.getResultIcon(newTest.result)} ${newTest.result}`;
 		    testRow.find('.test-result').html(resultString);
 		    testRow.attr('result', newTest.result);
+//		    DetailTable.updateColumnHeaderFilterOptions('result', newTest.result);
 		}
 		if(oldTest.browser != newTest.browser){
 		    testRow.find('.test-browser').html(newTest.browser);
+//		    DetailTable.updateColumnHeaderFilterOptions('browser', newTest.browser);
 		}
 		if(oldTest.environment != newTest.environment){
 		    testRow.find('.test-environment').html(newTest.environment);
+//		    DetailTable.updateColumnHeaderFilterOptions('environment', newTest.environment);
 		}
 		if(oldTest.test_elapsed_time != newTest.elapsed_time){
-		    testRow.find('.test-time').html(
-		        Main.Utils.secondsToReadableString(newTest.elapsed_time));
+//		    testRow.find('.test-time').html(ExecutionReport.formatTimeOutput(newTest.test_elapsed_time));
 		}
 		if(oldTest.set_name != newTest.set_name){
 		    DetailTable.hasSetNameColumn = true;
 			DetailTable.displaySetNameColumn();
 			testRow.find('.set-name').html(newTest.set_name.toString());
+//			DetailTable.updateColumnHeaderFilterOptions('set-name', newTest.set_name);
 
 		}
 //		if(oldTest.module != newTest.module){
@@ -540,12 +559,6 @@ const DetailTable = new function(){
 		let resultString = `${Main.Utils.getResultIcon(data.result)} ${data.result}`;
 		let href = ExecutionReport.testUniqueIdHref(data.testUniqueId);
 		let testDetailRow = DetailTable.generateTestDetailRow(data.test, data.testFile, data.setName, data.testUniqueId, href);
-        let elapsedTime;
-        if(data.elapsedTime == null) {
-            elapsedTime = ''
-        } else {
-            elapsedTime = Main.Utils.secondsToReadableString(data.elapsedTime)
-        }
         var row = `
             <tr test-id="${data.testUniqueId}" test-name="${data.test}" test-file="${data.testFile}"
                     set-name="${data.setName}" result="${data.result}" class="test-row cursor-pointer"
@@ -557,7 +570,7 @@ const DetailTable = new function(){
                 <td class="test-environment">${data.environment}</td>
                 <td class="test-browser">${data.browser}</td>
                 <td class="test-result">${resultString}</td>
-                <td class="test-time">${elapsedTime}</td>
+                <td class="test-time">${data.elapsedTime}</td>
                 <td class="link" style="${ data.static ? 'display: None' : '' }">
                     <a href="${data.urlToTest}">
                         <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
@@ -570,7 +583,6 @@ const DetailTable = new function(){
 
     this.generateTestDetailRow = function(testName, testFile, setName, testUniqueId, href){
         let id = `${testUniqueId}Collapse`;
-        let safeTestUniqueId = ExecutionReport.testUniqueIdHref(testUniqueId);
         let onclick = "$(this).siblings().removeClass('active');$(this).addClass('active');"
         let row = `
             <tr test-id="${testUniqueId}" test-name="${testName}" test-file="${testFile}" set-name="${setName}" class="test-detail-row">
@@ -579,25 +591,20 @@ const DetailTable = new function(){
                         <div class="logs col-md-6 test-detail-box">
                             <div class="test-detail-box-title">
                                 Logs &nbsp;
-                                <a href="#${safeTestUniqueId}DebugLog" class="link-without-underline" role="tab"
-                                    data-toggle="tab" onclick="${onclick}">debug</a>
-                                <a href="#${safeTestUniqueId}InfoLog" class="active link-without-underline" role="tab"
+                                <a href="#${testUniqueId}InfoLog" aria-controls="${testUniqueId}InfoLog" class="active link-without-underline" role="tab"
                                     data-toggle="tab" onclick="${onclick}">info</a>
+                                <a href="#${testUniqueId}DebugLog" aria-controls="${testUniqueId}DebugLog" class="link-without-underline" role="tab"
+                                    data-toggle="tab" onclick="${onclick}">debug</a>
                             </div>
                             <div class="tab-content">
-                                <div role="tabpanel" class="tab-pane info-log active" id="${safeTestUniqueId}InfoLog"></div>
-                                <div role="tabpanel" class="tab-pane debug-log" id="${safeTestUniqueId}DebugLog"></div>
+                                <div role="tabpanel" class="tab-pane info-log active" id="${testUniqueId}InfoLog"></div>
+                                <div role="tabpanel" class="tab-pane debug-log" id="${testUniqueId}DebugLog"></div>
                             </div>
                         </div>
                         <div class='detail-right-column col-md-6'></div>
                     </div>
                 </td>
             </tr>`;
-
-        $(row).find('.test-detail-box-title a').click(function (e) {
-          e.preventDefault()
-          $(this).tab('show')
-        })
         return row
     }
 
@@ -608,8 +615,8 @@ const DetailTable = new function(){
         }
     }
 
-    this.getTestRow = function(testId){
-        return $(`tr.test-row[test-id='${testId}']`)
+    this.getTestRow = function(setName){
+        return $(`tr.test-row[test-set='${setName}']`)
     }
 
     this.getTestDetailRow = function(setName){

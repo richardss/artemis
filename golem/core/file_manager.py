@@ -57,8 +57,8 @@ def generate_file_structure_dict(full_path, original_path=None):
             if elem not in ['__pycache__']:
                 directories.append(elem)
         else:
-            cond1 = elem.endswith('.py')
-            cond2 = elem not in ['__init__.py', '.DS_Store']
+            cond1 = elem not in ['__init__.py', '.DS_Store']
+            cond2 = not elem.endswith('.csv')
             if cond1 and cond2:
                 files.append(os.path.splitext(elem)[0])
     for directory in directories:
@@ -124,7 +124,7 @@ def create_package(path_list=None, path=None):
 def rename_file(old_path, new_path):
     errors = []
     if not os.path.isfile(old_path):
-        errors.append(f'File {old_path} does not exist')
+        errors.append('File {} does not exist'.format(old_path))
     elif os.path.isfile(new_path):
         errors.append('A file with that name already exists')
     else:
@@ -143,7 +143,7 @@ def new_directory_of_type(project, parents, dir_name, dir_type):
     dir_type should be in ['tests', 'suites', 'pages']"""
     errors = []
     if dir_type not in ['tests', 'suites', 'pages']:
-        errors.append(f'{dir_type} is not a valid dir_type')
+        errors.append('{} is not a valid dir_type'.format(dir_type))
     else:
         parents = os.sep.join(parents)
         path = os.path.join(session.testdir, 'projects', project, dir_type, parents, dir_name)
@@ -175,11 +175,11 @@ def rename_directory(basepath, src, dst):
     srcpath = os.path.join(basepath, src)
     dstpath = os.path.join(basepath, dst)
     if not os.path.exists(srcpath):
-        errors.append(f'Directory {src} does not exist')
+        errors.append('Directory {} does not exist'.format(src))
     elif not os.path.isdir(srcpath):
-        errors.append(f'Path {src} is not a directory')
+        errors.append('Path {} is not a directory'.format(src))
     elif os.path.exists(dstpath):
-        errors.append(f'Path {dst} already exists')
+        errors.append('Path {} already exists'.format(dst))
     else:
         try:
             dirname = os.path.dirname(dst)

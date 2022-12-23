@@ -77,17 +77,18 @@ def open_browser(browser_name=None, capabilities=None, remote_url=None, browser_
                 try:
                     yield matched_executable_path
                 except:
-                    msg = f"Could not start {browser_name} driver using the path '{executable_path}'\n" \
-                          f"verify that the {exec_path_setting} setting points to a valid webdriver executable."
+                    msg = ('Could not start {} driver using the path \'{}\'\n'
+                           'verify that the {} setting points to a valid webdriver executable.'
+                           .format(browser_name, executable_path, exec_path_setting))
                     execution.logger.error(msg)
                     execution.logger.info(traceback.format_exc())
                     raise Exception(msg)
             else:
-                msg = f'No executable file found using path {executable_path}'
+                msg = 'No executable file found using path {}'.format(executable_path)
                 execution.logger.error(msg)
                 raise Exception(msg)
         else:
-            msg = f'{exec_path_setting} setting is not defined'
+            msg = '{} setting is not defined'.format(exec_path_setting)
             execution.logger.error(msg)
             raise Exception(msg)
 
@@ -115,9 +116,9 @@ def open_browser(browser_name=None, capabilities=None, remote_url=None, browser_
         if len(execution.browsers) == 0:
             browser_id = 'main'
         else:
-            browser_id = f'browser{len(execution.browsers)}'
+            browser_id = 'browser{}'.format(len(execution.browsers))
     if browser_id in execution.browsers:
-        raise InvalidBrowserIdError(f"browser id '{browser_id}' is already in use")
+        raise InvalidBrowserIdError("browser id '{}' is already in use".format(browser_id))
 
     # remote
     if capabilities:
@@ -212,7 +213,7 @@ def open_browser(browser_name=None, capabilities=None, remote_url=None, browser_
         custom_browser_func = getattr(module, browser_name)
         driver = custom_browser_func(settings)
     else:
-        raise Exception(f"Error: {browser_definition['name']} is not a valid driver")
+        raise Exception('Error: {} is not a valid driver'.format(browser_definition['name']))
 
     if settings['start_maximized'] and not is_custom:
         # currently there is no way to maximize chrome window on OSX (chromedriver 2.43), adding workaround

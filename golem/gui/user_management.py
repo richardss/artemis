@@ -90,14 +90,14 @@ class Users:
         if len(username) == 0:
             errors.append('Username cannot be blank')
         elif Users.user_exists(username):
-            errors.append(f'Username {username} already exists')
+            errors.append('Username {} already exists'.format(username))
 
         if email is not None:
             email = email.strip()
             if len(email) == 0:
                 email = None
             elif not utils.validate_email(email):
-                errors.append(f'{email} is not a valid email address')
+                errors.append('{} is not a valid email address'.format(email))
 
         if len(password) == 0:
             errors.append('Password cannot be blank')
@@ -175,7 +175,7 @@ class Users:
     def delete_user(username):
         errors = []
         if not Users.user_exists(username):
-            errors.append(f'Username {username} does not exist')
+            errors.append('Username {} does not exist'.format(username))
         elif current_user and current_user.is_authenticated and username == current_user.username:
             errors.append('Cannot delete current user')
         else:
@@ -190,7 +190,7 @@ class Users:
                   new_projects=None):
         errors = []
         if not Users.user_exists(username):
-            errors.append(f'Username {username} does not exist')
+            errors.append('Username {} does not exist'.format(username))
         else:
             user = Users.get_user_dictionary(username)
 
@@ -204,7 +204,7 @@ class Users:
                 if len(new_username) == 0:
                     errors.append('Username cannot be blank')
                 elif Users.user_exists(new_username):
-                    errors.append(f'Username {new_username} already exists')
+                    errors.append('Username {} already exists'.format(new_username))
                 else:
                     user['username'] = new_username
 
@@ -217,7 +217,7 @@ class Users:
                     elif utils.validate_email(new_email):
                         valid_email = True
                     else:
-                        errors.append(f'{new_email} is not a valid email address')
+                        errors.append('{} is not a valid email address'.format(new_email))
                 if (new_email is None or valid_email) and new_email != user['email']:
                     user['email'] = new_email
 
@@ -239,7 +239,7 @@ class Users:
     def reset_user_password(username, new_password):
         errors = []
         if not Users.user_exists(username):
-            errors.append(f'Username {username} does not exist')
+            errors.append('Username {} does not exist'.format(username))
         else:
             if len(new_password) == 0:
                 errors.append('Password cannot be blank')
@@ -287,7 +287,7 @@ class User:
 
     def project_permission(self, project):
         for p, permission in self.projects.items():
-            if p == project or '*' in p:
+            if p == project:
                 return permission
         return None
 
@@ -305,7 +305,7 @@ class User:
         return s.dumps({'id': self.id})
 
     def __repr__(self):
-        return f'<User {self.username}>'
+        return '<User {}>'.format(self.username)
 
 
 class Permissions:

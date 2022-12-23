@@ -25,7 +25,7 @@ def create_test(project_name, test_name):
         path = Test(project_name, test_name).path
         with open(path, 'w', encoding='utf-8') as f:
             f.write(test_content)
-        print(f'Test {test_name} created for project {project_name}')
+        print('Test {} created for project {}'.format(test_name, project_name))
     return errors
 
 
@@ -33,7 +33,7 @@ def rename_test(project_name, test_name, new_test_name):
     errors = []
     project = Project(project_name)
     if test_name not in project.tests():
-        errors.append(f'Test {test_name} does not exist')
+        errors.append('Test {} does not exist'.format(test_name))
     else:
         errors = validate_project_element_name(new_test_name)
     if not errors:
@@ -56,7 +56,7 @@ def duplicate_test(project, name, new_name):
     if name == new_name:
         errors.append('New test name cannot be the same as the original')
     elif not os.path.isfile(old_path):
-        errors.append(f'Test {name} does not exist')
+        errors.append('Test {} does not exist'.format(name))
     elif os.path.isfile(new_path):
         errors.append('A test with that name already exists')
     else:
@@ -89,7 +89,7 @@ def edit_test(project, test_name, description, pages, steps, test_data, tags, sk
                 formatted_description = formatted_description + '\n' + line
             formatted_description = formatted_description + '\'\'\''
         else:
-            formatted_description = f"description = '{description}'"
+            formatted_description = 'description = \'{}\''.format(description)
         return formatted_description
 
     def _format_tags_string(tags):
@@ -114,7 +114,7 @@ def edit_test(project, test_name, description, pages, steps, test_data, tags, sk
             for key, value in data_set.items():
                 if not value:
                     value = "''"
-                result += f"        '{key}': {value},\n"
+                result += '        \'{}\': {},\n'.format(key, value)
             result += '    },\n'
         result += ']'
         return result
@@ -125,11 +125,11 @@ def edit_test(project, test_name, description, pages, steps, test_data, tags, sk
             if step['type'] == 'function-call':
                 step_action = step['action'].replace(' ', '_')
                 param_str = ', '.join(step['parameters'])
-                step_lines.append(f'    {step_action}({param_str})')
+                step_lines.append('    {0}({1})'.format(step_action, param_str))
             else:
                 lines = step['code'].splitlines()
                 for line in lines:
-                    step_lines.append(f'    {line}')
+                    step_lines.append('    {}'.format(line))
         return '\n'.join(step_lines)
 
     def _print_extra_blank_line():
@@ -137,15 +137,6 @@ def edit_test(project, test_name, description, pages, steps, test_data, tags, sk
         if extra_blank_line:
             test_.append('')
             extra_blank_line = False
-
-    def _order_hooks(test_hooks):
-        """Put the test hooks in a predefined order"""
-        ordered = {}
-        order_list = ['before_test', 'setup', 'before_each', 'after_each', 'after_test', 'teardown']
-        for hook_name in order_list:
-            if hook_name in test_hooks:
-                ordered[hook_name] = test_hooks[hook_name]
-        return ordered
 
     path = Test(project, test_name).path
     settings = settings_manager.get_project_settings(project)
@@ -161,8 +152,8 @@ def edit_test(project, test_name, description, pages, steps, test_data, tags, sk
             split = page.split('.')
             top = split.pop()
             parents = '.'.join(split)
-            parents = f'.{parents}' if parents else ''
-            test_.append(f'from projects.{project}.pages{parents} import {top}')
+            parents = '.{}'.format(parents) if parents else ''
+            test_.append('from projects.{}.pages{} import {}'.format(project, parents, top))
 
     extra_blank_line = False
     if not settings['implicit_actions_import'] or not settings['implicit_page_import']:
@@ -176,52 +167,49 @@ def edit_test(project, test_name, description, pages, steps, test_data, tags, sk
     if tags:
         _print_extra_blank_line()
         test_.append('')
-        test_.append(f'tags = {_format_tags_string(tags)}')
+        test_.append('tags = {}'.format(_format_tags_string(tags)))
 
     if pages and settings['implicit_page_import']:
         _print_extra_blank_line()
         test_.append('')
-        test_.append(f'pages = {_format_page_string(pages)}')
+        test_.append('pages = {}'.format(_format_page_string(pages)))
 
-    if test_data['csv'] is not None:
-        test_data_module.save_csv_test_data(project, test_name, test_data['csv'])
-    else:
-        test_data_module.remove_csv_if_present(project, test_name)
-
-    if test_data['json'] is not None and test_data['json'].strip():
-        test_data_module.save_json_test_data(project, test_name, test_data['json'])
-    else:
-        test_data_module.remove_json_data_if_present(project, test_name)
-
-    if test_data['internal'] is not None and test_data['internal'].strip():
-        _print_extra_blank_line()
-        test_.append('')
-        test_.append(test_data['internal'])
+    if test_data:
+        if settings['test_data'] == 'infile':
+            _print_extra_blank_line()
+            test_.append('')
+            test_.append('data = {}'.format(_format_data(test_data)))
+            test_data_module.remove_csv_if_exists(project, test_name)
+        else:
+            test_data_module.save_external_test_data_file(project, test_name, test_data)
 
     if skip:
         _print_extra_blank_line()
         test_.append('')
         if type(skip) is str:
-            skip = f"'{skip}'"
-        test_.append(f'skip = {skip}')
+            skip = "'{}'".format(skip)
+        test_.append('skip = {}'.format(skip))
 
-    if steps['hooks']:
-        ordered_hooks = _order_hooks(steps['hooks'])
-        for hook, hook_steps in ordered_hooks.items():
-            if hook_steps:
-                test_.append('')
-                test_.append('')
-                test_.append(f'def {hook}(data):')
-                test_.append(_format_steps(hook_steps))
+    if steps['setup']:
+        test_.append('')
+        test_.append('')
+        test_.append('def setup(data):')
+        test_.append(_format_steps(steps['setup']))
 
     for test_function_name, test_function_steps in steps['tests'].items():
         test_.append('')
         test_.append('')
-        test_.append(f'def {test_function_name}(data):')
+        test_.append('def {}(data):'.format(test_function_name))
         if test_function_steps:
             test_.append(_format_steps(test_function_steps))
         else:
             test_.append('    pass')
+
+    if steps['teardown']:
+        test_.append('')
+        test_.append('')
+        test_.append('def teardown(data):')
+        test_.append(_format_steps(steps['teardown']))
 
     test_.append('')
 
@@ -229,29 +217,25 @@ def edit_test(project, test_name, description, pages, steps, test_data, tags, sk
         f.write('\n'.join(test_))
 
 
-def edit_test_code(project, test_name, content, test_data=None):
+def edit_test_code(project, test_name, content, table_test_data):
     path = Test(project, test_name).path
     with open(path, 'w', encoding='utf-8') as f:
         f.write(content)
     # save test data
-    if test_data is not None:
-        if test_data['csv'] is not None:
-            test_data_module.save_csv_test_data(project, test_name, test_data['csv'])
-            test_data_module.remove_json_data_if_present(project, test_name)
-        else:
-            test_data_module.remove_csv_if_present(project, test_name)
-
-        if test_data['json'] is not None and test_data['json'].strip():
-            test_data_module.save_json_test_data(project, test_name, test_data['json'])
-        else:
-            test_data_module.remove_json_data_if_present(project, test_name)
+    settings = settings_manager.get_project_settings(project)
+    if settings['test_data'] == 'csv':
+        # save csv data
+        test_data_module.save_external_test_data_file(project, test_name, table_test_data)
+    elif settings['test_data'] == 'infile':
+        # remove csv files
+        test_data_module.remove_csv_if_exists(project, test_name)
 
 
 def delete_test(project, test_name):
     errors = []
     path = Test(project, test_name).path
     if not os.path.isfile(path):
-        errors.append(f'Test {test_name} does not exist')
+        errors.append('Test {} does not exist'.format(test_name))
     else:
         try:
             os.remove(path)
@@ -259,7 +243,7 @@ def delete_test(project, test_name):
             if os.path.isfile(data_path):
                 os.remove(data_path)
         except:
-            errors.append(f'There was an error removing file {test_name}')
+            errors.append('There was an error removing file {}'.format(test_name))
     return errors
 
 
@@ -291,6 +275,22 @@ class Test(BaseProjectElement):
         return page_list + imported_pages
 
     @property
+    def setup_steps(self):
+        setup_function = getattr(self.get_module(), 'setup', None)
+        if setup_function:
+            return test_parser.parse_function_steps(setup_function)
+        else:
+            return None
+
+    @property
+    def teardown_steps(self):
+        teardown_function = getattr(self.get_module(), 'teardown', None)
+        if teardown_function:
+            return test_parser.parse_function_steps(teardown_function)
+        else:
+            return None
+
+    @property
     def test_functions(self):
         """Dictionary of parsed steps of each test function"""
         tests = {}
@@ -308,37 +308,6 @@ class Test(BaseProjectElement):
         ast_module_node = parsing_utils.ast_parse_file(self.path)
         local_function_names = parsing_utils.top_level_functions(ast_module_node)
         return [f for f in local_function_names if f.startswith('test')]
-
-    @property
-    def test_hooks(self):
-        """Dictionary of parsed steps of each test hook function"""
-        hooks = {}
-        test_hooks = self.test_hook_list
-        for hook_name in test_hooks:
-            h = getattr(self.get_module(), hook_name)
-            # TODO setup / teardown are deprecated, returned as before_test/after_test
-            if hook_name == 'setup':
-                hook_name = 'before_test'
-            if hook_name == 'teardown':
-                hook_name = 'after_test'
-            hooks[hook_name] = test_parser.parse_function_steps(h)
-
-        from collections import OrderedDict
-        return OrderedDict(hooks)
-
-    @property
-    def test_hook_list(self):
-        """List of test hook functions"""
-        ast_module_node = parsing_utils.ast_parse_file(self.path)
-        local_function_names = parsing_utils.top_level_functions(ast_module_node)
-        test_hook_names = ['setup', 'teardown', 'before_test', 'before_each', 'after_each', 'after_test']
-        test_hooks = [f for f in local_function_names if f in test_hook_names]
-        # TODO: setup / teardown are deprecated
-        if 'setup' in test_hooks and 'before_test' in test_hooks:
-            test_hooks.remove('setup')
-        if 'teardown' in test_hooks and 'after_test' in test_hooks:
-            test_hooks.remove('teardown')
-        return test_hooks
 
     @property
     def skip(self):
@@ -364,10 +333,10 @@ class Test(BaseProjectElement):
             'pages': self.pages,
             'tags': self.tags,
             'skip': self.skip,
+            'setup_steps': self.setup_steps,
+            'teardown_steps': self.teardown_steps,
             'test_functions': self.test_functions,
             'test_function_list': self.test_function_list,
-            'test_hooks': self.test_hooks,
-            'test_hook_list': self.test_hook_list,
             'code': self.code
         }
         return components

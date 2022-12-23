@@ -92,7 +92,7 @@ def _get_log_level(log_level_string):
     elif log_level_string == 'CRITICAL':
         log_level = logging.CRITICAL
     else:
-        raise Exception(f'Log level {log_level_string} is invalid')
+        raise Exception('Log level {} is invalid'.format(log_level_string))
     return log_level
 
 

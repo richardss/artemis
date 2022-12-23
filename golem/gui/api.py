@@ -7,16 +7,10 @@ from flask.blueprints import Blueprint
 from flask_login import current_user
 from itsdangerous import BadSignature, SignatureExpired
 
-from golem.core import environment_manager
-from golem.core import page as page_module
-from golem.core import settings_manager
-from golem.core import suite as suite_module
-from golem.core import session
-from golem.core import tags_manager
-from golem.core import test as test_module
-from golem.core import test_directory
-from golem.core import test_data as test_data_module
-from golem.core import utils
+from golem.core import (environment_manager, settings_manager,
+                        test as test_module, page as page_module,
+                        suite as suite_module, session, utils, tags_manager,
+                        test_directory)
 from golem.core.page import Page
 from golem.core.project import Project, create_project, delete_project
 from golem.report import report
@@ -229,7 +223,7 @@ def project_delete():
     _verify_permissions(Permissions.SUPER_USER)
     errors = []
     if not test_directory.project_exists(project_name):
-        errors.append(f'Project {project_name} does not exist')
+        errors.append('Project {} does not exist'.format(project_name))
     else:
         delete_project(project_name)
         # update projects cache
@@ -283,14 +277,13 @@ def project_health():
                                                         execution=None, limit=1)
     health_data = {}
     for execution, timestamps in project_data[project].items():
-        if timestamps:
-            execution_data = exec_report.get_execution_data(project=project, execution=execution,
-                                                            timestamp=timestamps[0])
-            health_data[execution] = {
-                'execution': timestamps[0],
-                'total': execution_data['total_tests'],
-                'totals_by_result': execution_data['totals_by_result']
-            }
+        execution_data = exec_report.get_execution_data(project=project, execution=execution,
+                                                        timestamp=timestamps[0])
+        health_data[execution] = {
+            'execution': timestamps[0],
+            'total': execution_data['total_tests'],
+            'totals_by_result': execution_data['totals_by_result']
+        }
     return jsonify(health_data)
 
 
@@ -476,40 +469,6 @@ def report_delete_execution_timestamp():
     _verify_permissions(Permissions.ADMIN, project)
     errors = report.delete_execution_timestamp(project, execution, timestamp)
     return jsonify(errors)
-
-
-@api_bp.route('/report/get-reports')
-@auth_required
-def report_get_reports():
-    user = _get_user_api_or_session()
-    user_projects = user.project_list
-    project = request.args['project']
-    execution = request.args['execution']
-    last_days = int(request.args['lastDays'])
-    if project is None or project == 'null':
-        project_list = user_projects
-    else:
-        _verify_permissions(Permissions.REPORTS_ONLY, project)
-        project_list = [project]
-    last_timestamps = report.get_last_execution_timestamps(project_list, execution=execution, last_days=last_days)
-
-    result = []
-
-    for proj, executions in last_timestamps.items():
-        for exec_, timestamps in executions.items():
-            for timestamp in timestamps:
-                execution_data = exec_report.get_execution_data(project=proj, execution=exec_, timestamp=timestamp)
-                result.append({
-                    'project': proj,
-                    'execution': exec_,
-                    'timestamp': timestamp,
-                    'report': execution_data
-                })
-
-    # re-sort
-    result = sorted(result, key=lambda x: x['timestamp'], reverse=True)
-
-    return jsonify(result)
 
 
 @api_bp.route('/report/last-executions')
@@ -707,18 +666,13 @@ def test_components():
 def test_code_save():
     project = request.json['project']
     test_name = request.json['testName']
-    test_data = request.json['testData']
+    table_test_data = request.json['testData']
     content = request.json['content']
     _verify_permissions(Permissions.STANDARD, project)
-    test_error = None
-    data_errors = []
-    if test_data['json']:
-        data_errors.extend(utils.json_parse_error(test_data['json']))
-    if not data_errors:
-        test_module.edit_test_code(project, test_name, content, test_data)
-        path = test_module.Test(project, test_name).path
-        _, test_error = utils.import_module(path)
-    return jsonify({'testError': test_error, 'dataErrors': data_errors})
+    test_module.edit_test_code(project, test_name, content, table_test_data)
+    path = test_module.Test(project, test_name).path
+    _, error = utils.import_module(path)
+    return jsonify({'error': error})
 
 
 @api_bp.route('/test/delete', methods=['DELETE'])
@@ -781,20 +735,14 @@ def test_save():
     test_name = request.json['testName']
     description = request.json['description']
     pages = request.json['pages']
-    test_data = request.json['testData']
+    test_data_content = request.json['testData']
     test_steps = request.json['steps']
     tags = request.json['tags']
     skip = request.json['skip']
-    errors = []
     _verify_permissions(Permissions.STANDARD, project)
-    if test_data['internal'] is not None:
-        errors.extend(test_data_module.validate_internal_data(test_data['internal']))
-    if test_data['json'] is not None and test_data['json'].strip():
-        errors.extend(utils.json_parse_error(test_data['json']))
-    if not errors:
-        test_module.edit_test(project, test_name, description, pages, test_steps,
-                              test_data, tags, skip)
-    return jsonify({'errors': errors})
+    test_module.edit_test(project, test_name, description, pages, test_steps,
+                          test_data_content, tags, skip)
+    return jsonify('test-saved')
 
 
 @api_bp.route('/users')
@@ -892,7 +840,7 @@ def _create_project_element(project_name, element_name, element_type):
     elif element_type == Project.file_types.SUITE:
         errors = suite_module.create_suite(project_name, element_name)
     else:
-        errors.append(f'Invalid element type {element_type}')
+        errors.append('Invalid element type {}'.format(element_type))
     return jsonify({'errors': errors})
 
 
@@ -909,7 +857,7 @@ def _rename_project_element(element_type):
     elif element_type == Project.file_types.SUITE:
         errors = suite_module.rename_suite(project, name, new_name)
     else:
-        errors.append(f'Invalid element type {element_type}')
+        errors.append('Invalid element type {}'.format(element_type))
     return jsonify({'errors': errors})
 
 

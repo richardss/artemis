@@ -20,23 +20,10 @@ const Main = new function(){
         // max length for tests, pages, suites and directories
         this.MAXIMUM_FILENAME_LENGTH = 140;
 
-        this.getDateTimeFromTimestamp = function(timestamp) {
+        this.getDateTimeFromTimestamp = function(timestamp){
             var sp = timestamp.split('.');
             var dateTimeString = sp[0]+'/'+sp[1]+'/'+sp[2]+' '+sp[3]+':'+sp[4];
             return dateTimeString
-        }
-
-        this.secondsToReadableString = function(seconds) {
-            let str = '';
-            let min;
-            if(seconds >= 60) {
-                min = Math.floor(seconds/60);
-                str += min + 'm '
-                seconds = seconds % 60
-            }
-            seconds = seconds.toFixed(2)
-            str += seconds + 's'
-            return str
         }
 
         this.toast = function(type, msg, duration){
@@ -329,7 +316,6 @@ const Main = new function(){
             return errors
         }
 
-        // This does not work when the object contains arrays
         this.shallowObjectCompare = (obj1, obj2) =>
             Object.keys(obj1).length === Object.keys(obj2).length &&
             Object.keys(obj1).every(key => obj2.hasOwnProperty(key) && obj1[key] === obj2[key]);
@@ -380,38 +366,15 @@ const Main = new function(){
             $("#screenshotModal").modal('show');
         }
 
-        this.animateProgressBar = function(container, result, percentage, qty){
+        this.animateProgressBar = function(container, result, percentage){
             setTimeout(function(){
                 let bar = container.find(`div.progress-bar[result-code='${result}']`);
                 bar.css('width', `${percentage}%`);
-                if(qty) {
-                    bar.attr('data-toggle', 'tooltip');
-                    bar.attr('title', `${result}: ${qty}`);
-                    bar.tooltip();
-                    bar.attr('data-original-title', `${result}: ${qty}`);
-                }
             }, 100);
         }
 
         this.hasProgressBarForResult = function(container, result){
             return container.find(`div.progress-bar[result-code='${result}']`).length != 0
-        }
-    }
-
-    this.URLS = new function() {
-
-        this.reportDashboard = function(project, execution) {
-            if(project == undefined) {
-                return `/report/`
-            } else if(execution == undefined) {
-                return `/report/${project}/`
-            } else {
-                return `/report/${project}/${execution}/`
-            }
-        }
-
-        this.executionReport = function(project, execution, timestamp) {
-            return `/report/${project}/${execution}/${timestamp}/`
         }
     }
 
@@ -631,56 +594,19 @@ const Main = new function(){
             }
         }
 
-        this._updateSet = function(setName, testFileReport, timestamp){
-            Main.TestRunner._addTabIfDoesNotExist(setName);
-            let tab = $(`.test-run-tab-content[set-name='${setName}']`);
-            // update log
-            if(testFileReport.log_info != null) {
-                testFileReport.log_info.forEach(function(line){
-                    let displayedLinesStrings = [];
-                    tab.find('.test-result-logs div.log-line').each(function(){
-                          displayedLinesStrings.push($(this).html())
-                     });
-                    if(!displayedLinesStrings.includes(line)){
-                        tab.find('.test-result-logs').append("<div class='log-line'>"+line+"</div>");
-                        $('.modal-body').scrollTop($('.modal-body')[0].scrollHeight);
-                    }
-                });
-            }
-            // update test file functions if this test file set has finished
-            // a test file set is finished when there is no test function
-            // with result pending or running
-            let somePending = testFileReport.report.some(testFunction => testFunction.result == Main.ResultsEnum.pending.code);
-            let someRunning = testFileReport.report.some(testFunction => testFunction.result == Main.ResultsEnum.running.code);
-
-            if(!somePending && !someRunning){
-                let tabNav = $(`.test-run-tab[set-name='${setName}']`);
-                if(tabNav.attr('running') == 'true'){
-                    tabNav.removeAttr('running');
-                    tabNav.find('i').remove();
-                    testFileReport.report.forEach((r) => {
-                        Main.TestRunner._loadOrUpdateTestFunctionReport(tab, setName, r, timestamp);
-                    })
-                }
-            }
-        }
-
-        this._loadOrUpdateTestFunctionReport = function(tab, setName, report, timestamp){
-            let testFunctionReport = $(`
-                <div class='report-result' test-function-name='${report.test}'>
-                    <h4>${report.test}</h4>
-                </div>`);
-            tab.append(testFunctionReport);
-
+        this._loadSetReport = function(setName, report, timestamp){
+            let reportContainer = $(`
+            <div class='report-result'>
+                <h4>${report.test}</h4>
+            </div>`);
             let resultIcon = Main.Utils.getResultIcon(report.result);
-            testFunctionReport.append(`<div class="test-result"><strong style='display: inline-block; width: 120px'>Result:</strong> <span>${report.result} ${resultIcon}</span></div>`);
-
-            testFunctionReport.append(`<div><strong style='display: inline-block; width: 120px'>Browser:</strong> ${report.browser}</div>`);
-            if(report.environment) {
-                testFunctionReport.append(`<div><strong style='display: inline-block; width: 120px'>Environment:</strong> ${report.environment}</div>`);
+            reportContainer.append(`<div class="test-result"><strong style='display: inline-block; width: 120px'>Result:</strong> ${report.result} ${resultIcon}</div>`);
+            reportContainer.append(`<div><strong style='display: inline-block; width: 120px'>Browser:</strong> ${report.browser}</div>`);
+            if(report.environment.length) {
+                reportContainer.append(`<div><strong style='display: inline-block; width: 120px'>Environment:</strong> ${report.environment}</div>`);
             }
-            testFunctionReport.append(`<div><strong style='display: inline-block; width: 120px'>Elapsed Time:</strong> ${report.elapsed_time}</div>`);
-            testFunctionReport.append(`<div><strong style='display: inline-block; width: 120px'>Steps:</strong></div>`);
+            reportContainer.append(`<div><strong style='display: inline-block; width: 120px'>Elapsed Time:</strong> ${report.elapsed_time}</div>`);
+            reportContainer.append(`<div><strong style='display: inline-block; width: 120px'>Steps:</strong></div>`);
             if(report.steps.length > 0){
                 let stepsList = $("<ol class='step-list' style='margin-left: 20px'></ol>");
                 report.steps.forEach(function(step){
@@ -703,18 +629,48 @@ const Main = new function(){
                     }
                     stepsList.append(stepContent);
                 });
-                testFunctionReport.append(stepsList)
+                reportContainer.append(stepsList)
             }
-            testFunctionReport.append(`<div><strong style='display: inline-block; width: 120px'>Errors:</strong></div>`);
+            reportContainer.append(`<div><strong style='display: inline-block; width: 120px'>Errors:</strong></div>`);
             if(report.errors.length > 0){
                 let errorsList = $("<ol class='error-list' style='margin-left: 20px'></ol>");
                 report.errors.forEach(function(error){
                     errorsList.append(`<li>${error.message}</li>`);
                 });
-                testFunctionReport.append(errorsList);
+                reportContainer.append(errorsList);
             };
-            testFunctionReport.append(`<br>`);
+            reportContainer.append(`<br>`);
+            $(`.test-run-tab-content[set-name='${setName}']>.test-results`).append(reportContainer);
             $('.modal-body').scrollTop($('.modal-body')[0].scrollHeight);
+        }
+
+        this._updateSet = function(setName, values, timestamp){
+            Main.TestRunner._addTabIfDoesNotExist(setName);
+            let tab = $(`.test-run-tab-content[set-name='${setName}']`);
+            if(values.log_info != null) {
+                values.log_info.forEach(function(line){
+                    let displayedLinesStrings = [];
+                    tab.find('.test-result-logs div.log-line').each(function(){
+                          displayedLinesStrings.push($(this).html())
+                     });
+                    if(!displayedLinesStrings.includes(line)){
+                        tab.find('.test-result-logs').append("<div class='log-line'>"+line+"</div>");
+                        $('.modal-body').scrollTop($('.modal-body')[0].scrollHeight);
+                    }
+                });
+            }
+            // If this test set has finished
+            if(values.report != null){
+                let tabNav = $(`.test-run-tab[set-name='${setName}']`);
+                if(tabNav.attr('running') == 'true'){
+                    tabNav.removeAttr('running');
+                    tabNav.find('i').remove();
+//                    tabNav.find('a').append(Main.Utils.getResultIcon(values.report.result));
+                    values.report.forEach((r) => {
+                        Main.TestRunner._loadSetReport(setName, r, timestamp);
+                    })
+                }
+            }
         }
 
         this.addInfoBar = function(msg){

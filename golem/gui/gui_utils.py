@@ -171,7 +171,8 @@ class GolemActionParser:
         for action in action_func_list:
             doc = action.__doc__
             if doc is None:
-                print(f'Warning: action {action.__name__} does not have docstring defined')
+                print('Warning: action {} does not have docstring defined'
+                      .format(action.__name__))
             elif 'DEPRECATED' in doc:
                 pass
             else:
@@ -185,7 +186,7 @@ class GolemActionParser:
 
         explicit_actions = copy.deepcopy(actions)
         for action in explicit_actions:
-            action['name'] = f'actions.{action["name"]}'
+            action['name'] = 'actions.{}'.format(action['name'])
 
         # add 'code_block' action
         code_block_action = {
@@ -242,7 +243,7 @@ def project_exists(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not test_directory.project_exists(kwargs['project']):
-            abort(404, f'The project {kwargs["project"]} does not exist.')
+            abort(404, 'The project {} does not exist.'.format(kwargs['project']))
         return func(*args, **kwargs)
     return wrapper
 

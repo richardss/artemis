@@ -22,7 +22,7 @@ def create_testdir_golem_file(testdir):
     with open(golem_file, 'w') as f:
         secret_key = os.urandom(24).hex()
         f.write('[gui]\n')
-        f.write(f'secret_key = {secret_key}\n')
+        f.write('secret_key = {}\n'.format(secret_key))
 
 
 def get_projects():
@@ -68,17 +68,17 @@ def delete_driver_file(filename):
     errors = []
     path = os.path.join(drivers_path(), filename)
     if not os.path.isfile(path):
-        errors.append(f'File {filename} does not exist')
+        errors.append('File {} does not exist'.format(filename))
     else:
         try:
             os.remove(path)
         except Exception as e:
-            errors.append(f'There was an error removing file {filename}')
+            errors.append('There was an error removing file {}'.format(filename))
     return errors
 
 
 def update_driver(driver_name):
     if driver_name not in ['chromedriver', 'geckodriver']:
-        return f'{driver_name} is not a valid driver name'
+        return '{} is not a valid driver name'.format(driver_name)
     webdriver_manager.update(driver_name, drivers_path())
     return ''  # TODO: webdriver-manager should return actual error messages
