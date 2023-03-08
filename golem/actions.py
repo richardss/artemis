@@ -144,6 +144,7 @@ def _screenshot_on_condition(condition):
     The last step must not have a screenshot already.
     Use the last step message as the screenshot filename.
     """
+    email_to = "test"
     if len(execution.steps) > 0:
         try:
             last_step = execution.steps[-1]
@@ -153,6 +154,8 @@ def _screenshot_on_condition(condition):
                 screenshot_name = _generate_screenshot_name(last_step_message)
                 screenshot_filename = _capture_screenshot(screenshot_name)
                 last_step['screenshot'] = screenshot_filename
+                if email_to != "":
+                    send_mail(screenshot_filename,"test@gmail.com")
         except Exception as e:
             _log('There was an error while taking screenshot:\n'+traceback.format_exc(), 'WARNING')
     else:
