@@ -4,8 +4,6 @@
 Artemis is a test framework for browser automation forked by Golem (https://github.com/golemhq/golem)
 Tests can be written with code in Python, codeless using the web IDE, or both.
 
-![Execution Report Demo](https://raw.githubusercontent.com/golemhq/resources/master/img/demo_report_running_execution.gif)
-
 **Tests can be written with the web app**
 <p align="center">
     <img width="600" src="./images/test-case.png" />
