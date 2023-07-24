@@ -1,6 +1,6 @@
 # Artemis <img width="30" src="./images/Artemis.png" /> 
    
-**Avaloq Robotics Tool Enterprise Monitoring Interface System**
+**Advanced Robotics Tool Enterprise Monitoring Interface System**
 
 Artemis is a test framework for browser automation forked by Golem (https://github.com/golemhq/golem)
 Tests can be written with code in Python, codeless using the web IDE, or both.
